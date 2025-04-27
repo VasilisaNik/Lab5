@@ -23,10 +23,89 @@ enum class GameRazmer : int
     Unknown
 };
 
+
+// Реализация паттерна "Стратегия"
+
+enum class PlayingMannerEnum : int
+{
+  Phone,
+  PC,
+  PS,
+
+  None
+};
+
+
+class PlayingStrategy
+{
+public:
+  virtual ~PlayingStrategy() {}
+  virtual void Play() = 0;
+};
+
+
+class PhonePlayingStrategy : public PlayingStrategy
+{
+  void Play() { cout << "Have fun playing on phone..."; }
+};
+
+class PCPlayingStrategy : public PlayingStrategy
+{
+  void Play() { cout << "Have fun playing on PC..."; }
+};
+
+class PSPlayingStrategy : public PlayingStrategy
+{
+  void Play() { cout << "Have fun playing on PS..."; }
+};
+
+
+// Фабричный метод для создания стратегий
+PlayingStrategy *CreatePlayingStrategy(PlayingMannerEnum playingManner)
+{
+  switch(playingManner)
+  {
+    case PlayingMannerEnum::Phone: return new PhonePlayingStrategy;
+    case PlayingMannerEnum::PC: return new PCPlayingStrategy;
+    case PlayingMannerEnum::PS: return new PSPlayingStrategy;
+    default: return nullptr;
+  }
+}
+
+
 class Game
 {
 private:
     GameRating Rating;
+
+    PlayingStrategy *PlayingManner;
+
+    void DoPlayUsingStrategy()
+    {
+      if(PlayingManner == nullptr)
+      {
+        // Способ съедания не задан, ничего не делаем
+        cout << "Nothing";
+        return;
+      }
+      else
+      {
+        // Съесть заданным способом
+        PlayingManner->Play();
+      }
+    }
+
+    void DetectFreeOrNot()
+    {
+      if(IsFree())
+      {
+          cout << "Free";
+      }
+      else
+      {
+          cout << "No Free";
+      }
+    }
 
 protected:
 
@@ -36,11 +115,14 @@ public:
     string Genre;
     GameRazmer Razmer;
 
-   Game(GameRating rating, GameRazmer razmer) : Rating(rating), Razmer(razmer), GameIsFree(false), Genre("")
+   Game(GameRating rating, GameRazmer razmer) : Rating(rating), Razmer(razmer), GameIsFree(false), Genre(""), PlayingManner(nullptr)
    {
    }
 
-    virtual ~Game(); // Деструктор
+    virtual ~Game() // Деструктор
+    {
+      if(PlayingManner != nullptr) delete PlayingManner;
+    }
 
     bool IsFree() const { return GameIsFree; }
 
@@ -48,17 +130,35 @@ public:
 
     GameRating GetRating() const { return Rating; }
 
-    virtual void Instal() = 0;
-    virtual void Play() = 0;
-    virtual void Start() = 0;
+    virtual void PrintType() = 0;
+
+    virtual void Buy() = 0;
+
+    void Play()
+    {
+        // 1. Вывести название игры
+        PrintType();
+        cout << " : ";
+
+        // 2. Определить, бесплатная игра или нет
+        DetectFreeOrNot();
+        cout << " : ";
+
+        // 2.1 Купить игру
+        Buy();
+        cout << " : ";
+
+        // 3. Если хороший, съесть с использованием выбранной стратегии
+        DoPlayUsingStrategy();
+
+        // 4. Конец алгоритма
+        cout << endl;
+    }
+
+    void SetPlayingManner(PlayingStrategy *playingManner) { PlayingManner = playingManner; }
+
 };
 
-
-// Реализация деструктора
-Game::~Game()
-{
-    cout << "Deleting the game..." << endl;
-}
 
 class HonkaiStarRail : public Game
 {
@@ -68,48 +168,29 @@ public:
 
     double GetRazmer() const;
 
-    void Instal();
     void Play();
-    void Start();
+
+    void PrintType() { cout << "HonkaiStarRail"; }
+    void Buy() { cout << "Buying a game in the Play Market"; }
 };
 
 // Реализация конструктора
 HonkaiStarRail::HonkaiStarRail() : Game(GameRating::Fifty_second, GameRazmer::Mnogo)
 {
     GameIsFree = true; // Инициализация FruitIsGood через присваивание
-    //Razmer = 24;
 
-    cout << "Creating Honkai: Star Rail..." << endl;
+    // Определить стратегию съедания по умолчанию для яблока (вариант 1)
+    SetPlayingManner(CreatePlayingStrategy(PlayingMannerEnum::Phone));
 }
 
-// Реализация деструктора
 HonkaiStarRail::~HonkaiStarRail()
 {
     cout << "Deleting Honkai: Star Rail..." << endl;
 }
 
-/*double HonkaiStarRail::GetRazmer() const
-{
-    // Дополнительный функционал, которого не было в родительском классе
-    cout << "Honkai: Star Rail size on PC: " << Game::GetRazmer() << endl;
-
-    // Вызываем реализацию из родительского класса
-    return Game::GetRazmer();
-}*/
-
-void HonkaiStarRail::Instal()
-{
-    cout << "Instal the Honkai: Star Rail..." << endl;
-}
-
 void HonkaiStarRail::Play()
 {
     cout << "Play the Honkai: Star Rail..." << endl;
-}
-
-void HonkaiStarRail::Start()
-{
-    cout << "Start the Honkai: Star Rail..." << endl;
 }
 
 
@@ -119,18 +200,19 @@ public:
     GenshinImpact();
     ~GenshinImpact();
 
-    void Instal();
-    void Start();
     void Play();
+
+    void PrintType() { cout << "GenshinImpact"; }
+    void Buy() { cout << "Buying a game in the Play Station Store"; }
+
 };
 
 GenshinImpact::GenshinImpact() : Game(GameRating::Second, GameRazmer::Ochen_mnogo)
 {
     Genre = "Role-playing";
     GameIsFree = true;
-    //Razmer = 45.0;
 
-    cout << "Creating Genshin Impact..." << endl;
+    SetPlayingManner(CreatePlayingStrategy(PlayingMannerEnum::PS));
 }
 
 GenshinImpact::~GenshinImpact()
@@ -138,21 +220,12 @@ GenshinImpact::~GenshinImpact()
     cout << "Deleting Genshin Impact..." << endl;
 }
 
-void GenshinImpact::Instal()
-{
-    cout << "Instal the Genshin Impact..." << endl;
-}
+
 
 void GenshinImpact::Play()
 {
     cout << "Play the Genshin Impact..." << endl;
 }
-
-void GenshinImpact::Start()
-{
-    cout << "Start the Genshin Impact..." << endl;
-}
-
 
 
 class WutheringWaves : public Game
@@ -163,18 +236,18 @@ public:
 
     double GetRazmer() const;
 
-    void Instal();
     void Play();
-    void Start();
+
+    void PrintType() { cout << "WutheringWaves"; }
+    void Buy() { cout << "Buying a game in the Steam"; }
 };
+
 
 WutheringWaves::WutheringWaves() : Game(GameRating::Hundredth, GameRazmer::Malo)
 {
     GameIsFree = true;
-    //Razmer = 26.0;
-    Genre = "Role-playing";
 
-    cout << "Creating Wuthering Waves" << endl;
+    SetPlayingManner(CreatePlayingStrategy(PlayingMannerEnum::PC));
 }
 
 WutheringWaves::~WutheringWaves()
@@ -182,26 +255,10 @@ WutheringWaves::~WutheringWaves()
     cout << "Deleting Wuthering Waves..." << endl;
 }
 
-/*double WutheringWaves::GetRazmer() const
-{
-    cout << "Wuthering Waves size on PC: " << Game::GetRazmer() << endl;
-
-    return Game::GetRazmer();
-}*/
-
-void WutheringWaves::Instal()
-{
-    cout << "Instal the Wuthering Waves" << endl;
-}
 
 void WutheringWaves::Play()
 {
     cout << "Play the Wuthering Waves" << endl;
-}
-
-void WutheringWaves::Start()
-{
-    cout << "Start the Wuthering Waves..." << endl;
 }
 
 // Реализация паттерна "Фабричный метод" для создания фруктов
@@ -334,23 +391,6 @@ void PlayAll(Iterator<Game*> *it)
     }
 }
 
-void InstallAll(Iterator<Game*> *it)
-{
-    for(it->First(); !it->IsDone(); it->Next())
-    {
-        Game *currentGame = it->GetCurrent();
-        currentGame->Instal();
-    }
-}
-
-void StartAll(Iterator<Game*> *it)
-{
-    for(it->First(); !it->IsDone(); it->Next())
-    {
-        Game *currentGame = it->GetCurrent();
-        currentGame->Start();
-    }
-}
 
 int main()
 {
@@ -390,12 +430,12 @@ int main()
 
     wcout << endl << L"Запускаем все бесплатные игры с помощью итератора:" << endl;
     Iterator<Game*> *freeIt = new GameFreeDecorator(gameArray.GetIterator(), true);
-    StartAll(freeIt);
+    PlayAll(freeIt);
     delete freeIt;
 
     wcout << endl << L"Скачиваем во все игры с рейтингом 52:" << endl;
     Iterator<Game*> *fifIt = new GameRatingDecorator(gameArray.GetIterator(), GameRating::Fifty_second);
-    InstallAll(fifIt);
+    PlayAll(fifIt);
     delete fifIt;
 
     wcout << endl << L"Играем во все бесплатные игры с рейтингом 52:" << endl;
@@ -406,14 +446,14 @@ int main()
 
     wcout << endl << L"Запускаем все очень большие игры:" << endl;
     Iterator<Game*> *ochenIt = new GameRazmerDecorator(gameArray.GetIterator(), GameRazmer::Ochen_mnogo);
-    StartAll(ochenIt);
+    PlayAll(ochenIt);
     delete ochenIt;
 
     // Демонстрация работы адаптера
     wcout << endl << L"Устанавливаем все бесплатные игры с рейтингом 100 с помощью adapted iterator (другой контейнер):" << endl;
     Iterator<Game*> *adaptedIt = new ConstIteratorAdapter<std::list<Game*>, Game*>(&gameVector);
     Iterator<Game*> *adaptedHunIt = new GameFreeDecorator(new GameRatingDecorator(adaptedIt, GameRating::Hundredth), true);
-    InstallAll(adaptedHunIt);
+    PlayAll(adaptedHunIt);
     delete adaptedHunIt;
 
 
